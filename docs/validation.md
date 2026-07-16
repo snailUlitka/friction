@@ -13,6 +13,9 @@ git diff --check
 git status --short
 ```
 
+GitHub Actions runs the same sequence on `macos-latest` with Python 3.12, then
+builds the wheel and smoke-tests packaged migrations through `doctor`.
+
 Tests use temporary databases and synthetic JSONL fixtures. Validation against
 the user's real `~/friction-log` must use dry-run or a temporary database and
 must not print note contents.

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Check dependency lock
+        run: uv lock --check
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy src tests
+
+      - name: Test
+        run: >-
+          uv run pytest
+          --cov=friction
+          --cov-report=term-missing
+          --cov-fail-under=90
+
+      - name: Build package
+        run: uv build
+
+      - name: Smoke-test migrations and CLI
+        run: |
+          uv run friction --db "$RUNNER_TEMP/friction-ci.db" doctor --output json
+          uv run friction --db "$RUNNER_TEMP/friction-ci.db" import-jsonl tests/fixtures/jsonl/legacy.jsonl --dry-run --output json
+

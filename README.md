@@ -16,6 +16,17 @@ uv run pytest
 uv run friction --help
 ```
 
+Install both console scripts into an isolated user tool environment:
+
+```shell
+uv tool install .
+friction --help
+```
+
+The existing Fish function named `fr` shadows the short executable until the
+separate `configs` migration is performed. Use `friction` in the meantime; both
+entry points run the same application.
+
 Typical local usage:
 
 ```shell
