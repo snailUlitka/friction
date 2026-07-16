@@ -46,8 +46,8 @@ packages = ["friction"]
 [tool.coverage.run]
 branch = true
 source = ["friction"]
+omit = ["src/friction/storage/migrations/*"]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-

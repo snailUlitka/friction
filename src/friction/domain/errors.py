@@ -71,3 +71,14 @@ class InvalidTransitionError(FrictionError):
             details={"current_status": current, "target_status": target},
         )
 
+
+class StorageError(FrictionError):
+    """Raised when persistence cannot complete an operation."""
+
+    code = "storage_error"
+
+
+class DuplicateItemError(FrictionError):
+    """Raised when an item UUID already exists."""
+
+    code = "duplicate_item"

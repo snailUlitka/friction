@@ -2,10 +2,12 @@
 
 from friction.domain.errors import (
     AmbiguousIdentifierError,
+    DuplicateItemError,
     FrictionError,
     InvalidTransitionError,
     ItemNotFoundError,
     RevisionConflictError,
+    StorageError,
 )
 from friction.domain.models import (
     CreateItem,
@@ -20,6 +22,7 @@ from friction.domain.statuses import ItemStatus
 __all__ = [
     "AmbiguousIdentifierError",
     "CreateItem",
+    "DuplicateItemError",
     "EventType",
     "FrictionError",
     "FrictionEvent",
@@ -30,5 +33,5 @@ __all__ = [
     "ItemSource",
     "ItemStatus",
     "RevisionConflictError",
+    "StorageError",
 ]
-

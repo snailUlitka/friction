@@ -34,7 +34,7 @@ def _normalize_tags(tags: tuple[str, ...]) -> tuple[str, ...]:
         if key not in seen:
             normalized.append(tag)
             seen.add(key)
-    return tuple(normalized)
+    return tuple(sorted(normalized, key=str.casefold))
 
 
 def _normalize_optional_string(value: str | None) -> str | None:
@@ -265,4 +265,3 @@ class FrictionEvent(DomainModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("occurred_at must be timezone-aware")
         return value.astimezone(UTC)
-

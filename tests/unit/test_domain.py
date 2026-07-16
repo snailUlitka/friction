@@ -15,7 +15,7 @@ def test_create_item_normalizes_note_tags_and_time() -> None:
     ).to_item()
 
     assert item.note == "multiline\nnote"
-    assert item.tags == ("Editor", "cli")
+    assert item.tags == ("cli", "Editor")
     assert item.status is ItemStatus.OPEN
     assert item.revision == 1
     assert item.created_at == item.updated_at
@@ -36,4 +36,3 @@ def test_status_transition_rules() -> None:
 
     with pytest.raises(InvalidTransitionError):
         validate_transition(ItemStatus.DONE, ItemStatus.DISMISSED)
-

@@ -1,0 +1,2 @@
+"""Friction schema revisions."""
+

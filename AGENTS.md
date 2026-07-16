@@ -18,7 +18,7 @@ This repository contains Friction, a local-first workflow-friction tracker.
 ## Repository Map
 
 - `src/friction/` contains domain, application, storage, contract, and CLI code.
-- `alembic/` contains forward-only database migrations.
+- `src/friction/storage/migrations/` contains packaged Alembic migrations.
 - `tests/` mirrors behavior at unit, contract, integration, and migration levels.
 - `docs/` is the system of record for architecture, contracts, and operations.
 
@@ -34,4 +34,3 @@ This repository contains Friction, a local-first workflow-friction tracker.
 
 - Follow `docs/validation.md` for the complete validation sequence.
 - At minimum run Ruff, mypy, pytest, `git diff --check`, and inspect git status.
-
