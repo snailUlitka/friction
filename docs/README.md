@@ -11,6 +11,8 @@ maintenance procedures live here.
 - `domain.md` defines lifecycle and concurrency invariants.
 - `json-contract.md` defines the stable machine interface.
 - `import-export.md` defines legacy normalization and portable data behavior.
+- `interfaces.md` specifies the planned TUI, Emacs capture, and local MCP
+  milestone.
 - `validation.md` defines local and CI checks.
 
 ## Maintenance Rules

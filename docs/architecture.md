@@ -23,6 +23,8 @@ SQLite runs with foreign keys, WAL, and a five-second busy timeout. Packaged
 Alembic migrations are applied before normal database-backed commands; tests
 validate both fresh and repeated upgrades.
 
-FastAPI, MCP, Emacs, and Neovim adapters are out of scope for v1. The public
-application service and JSON contract are the extension points for those
-adapters.
+FastAPI, MCP, Emacs, Neovim, and TUI adapters are out of scope for v1. The
+public application service and JSON contract are the extension points for those
+adapters. The next interface milestone is specified in `interfaces.md`: a full
+Textual TUI, capture-only Emacs minor mode, and local stdio MCP server. FastAPI,
+web, Neovim, and network MCP remain outside that milestone.
