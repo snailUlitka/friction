@@ -5,11 +5,15 @@ interface milestone. It is intentionally prescriptive: an implementation agent
 should be able to complete the milestone without making product or architecture
 decisions that are not recorded here.
 
-The milestone adds three interfaces, in this order:
+The milestone contains all three required interfaces:
 
 1. a full terminal user interface;
-2. an Emacs minor mode for capture only;
+2. an Emacs capture command;
 3. a local MCP server using only the stdio transport.
+
+All three must be delivered. The implementation sequence later in this document
+is chosen to reduce integration risk; it does not express product priority or
+permit shipping a partial milestone.
 
 This document describes planned behavior. None of these interfaces is part of
 the current v1 release until its corresponding acceptance criteria are met.
@@ -20,10 +24,10 @@ the current v1 release until its corresponding acceptance criteria are met.
 - The TUI is built with Textual and is launched with `friction tui` or `fr tui`.
 - The TUI provides complete single-item management. It does not provide
   multi-selection or bulk actions in this milestone.
-- The Emacs integration only captures new items. It does not list, search,
-  edit, open, or change the status of existing items.
-- The Emacs integration is a buffer-local minor mode with an optional globalized
-  variant. It calls the JSON CLI asynchronously and never opens SQLite.
+- The Emacs integration is one loadable `friction-capture` command. It only
+  captures new items and does not define a mode or any key bindings.
+- The Emacs command calls the JSON CLI asynchronously and never opens SQLite.
+  Package installation and configuration integration are deferred.
 - The MCP server is local-only and stdio-only. It provides resources, a prompt,
   read tools, and mutation tools. It has no HTTP listener, authentication, or
   background daemon.
@@ -35,8 +39,8 @@ the current v1 release until its corresponding acceptance criteria are met.
   introduce a schema version 2.
 - Neovim, FastAPI, browser UI, Streamable HTTP MCP, remote access, sync, and
   notifications are out of scope.
-- The external `configs` repository is not modified. This repository includes
-  installation and cutover examples for it.
+- The external `configs` repository is not modified. Installing or binding the
+  Emacs command in that repository is a later task.
 
 ## User Outcomes
 
@@ -44,8 +48,8 @@ After the milestone, a user can:
 
 - run `friction tui` and manage the complete lifecycle of local items without
   remembering CLI subcommands;
-- enable `friction-mode` in Emacs and capture the current buffer context with a
-  single command;
+- load the development `friction.el` file and call `friction-capture` to record
+  the current Emacs buffer context;
 - configure an MCP host to launch `friction mcp` and let an agent inspect or
   mutate the same local database;
 - observe a write made by any interface in the others without restarting them;
@@ -61,7 +65,7 @@ Textual TUI ───────────────┐
 MCP stdio server ─────────┼──> FrictionService ──> repository port
 Python callers ───────────┘                           |
                                                       v
-Emacs minor mode ──> CLI JSON v1              SQLAlchemy / SQLite
+Emacs capture command ──> CLI JSON v1          SQLAlchemy / SQLite
 ```
 
 The domain and application packages must not import Textual, the MCP SDK,
@@ -81,7 +85,7 @@ The MCP upper bound is deliberate. At the time this decision was recorded,
 MCP Python SDK 1.x was the stable production line and 2.x was a prerelease with
 breaking API changes. Do not adopt MCP SDK 2.x as part of this milestone.
 
-The ordinary installation must include every interface:
+The ordinary Python installation must include TUI and MCP without extras:
 
 ```shell
 uv tool install .
@@ -89,8 +93,9 @@ friction tui
 friction mcp
 ```
 
-The supported platform remains macOS with Python 3.12 or newer. Emacs support
-starts at Emacs 29.1.
+The supported platform remains macOS with Python 3.12 or newer. The Emacs
+integration targets GNU Emacs 30.2 or newer, matching the user's installed
+version when this specification was recorded.
 
 ## Shared Adapter Rules
 
@@ -259,8 +264,8 @@ The filter screen contains:
 
 Submitting filters resets offset and selection, closes the screen, and loads
 the first page. Clearing filters restores the initial query. Search text is
-debounced for 300 milliseconds; blank search uses `service.list`, and nonblank
-search uses `service.search`.
+applied only when the user presses Enter; typing alone never queries SQLite.
+Blank search uses `service.list`, and nonblank search uses `service.search`.
 
 Use a page size of 100. Loading the final visible row fetches the next page if
 the previous page contained 100 items. Append pages without duplicating UUIDs.
@@ -280,15 +285,16 @@ but no database migration.
 ### Refresh behavior
 
 Refresh after every successful mutation and whenever the application resumes
-after source opening. Also poll every five seconds so writes made by MCP, Emacs,
-or another CLI process appear without a restart.
+after source opening. Do not poll on a timer. Writes made by MCP, Emacs, or
+another CLI process appear when the user runs `:e`, matching Vim's explicit
+reload command.
 
-Do not run a periodic refresh while a form, confirmation screen, or filter
-screen is open. Only one list/search refresh worker may run at a time; a newer
-request increments a generation counter, cancels the older worker, and ignores
-any result whose generation is no longer current. Preserve selection by UUID.
-If the selected item no longer matches the active filter, select the first
-remaining row and show a short status message.
+Reject `:e` while a form or confirmation screen is open. Only one list/search
+refresh worker may run at a time; a newer query increments a generation
+counter, cancels the older worker, and ignores any result whose generation is
+no longer current. Preserve selection by UUID. If the selected item no longer
+matches the active filter, select the first remaining row and show a short
+status message.
 
 All synchronous service and storage calls run in Textual workers rather than on
 the UI message loop. Disable the relevant action while its worker is running so
@@ -338,42 +344,83 @@ actual revisions, and offer `Reload latest` or `Cancel`. Reloading replaces the
 form with current persisted values; it never reapplies the draft automatically.
 Closing a dirty form requires confirmation.
 
-### Actions and keys
+### Vim-style interaction
 
-Implement these bindings:
+The application exposes only Vim-style global bindings. Do not add duplicate
+arrow-key, function-key, or control-key shortcuts for application actions.
+Text editing inside Textual `Input` and `TextArea` widgets may use their native
+editing behavior; the Vim rule applies to application navigation and commands.
+
+The main screen starts in normal mode and implements these keys:
 
 | Key | Action |
 | --- | --- |
-| `up` / `k` | select previous item |
-| `down` / `j` | select next item |
-| `enter` | focus or expand item details |
-| `/` | focus search input |
-| `f` | open complete filter screen |
-| `ctrl+r` | refresh now |
-| `a` | add an item |
-| `e` | edit selected item |
-| `d` | mark selected open item done |
-| `x` | dismiss selected open item |
-| `r` | reopen selected done or dismissed item |
-| `A` | archive selected active item |
-| `U` | unarchive selected archived item |
-| `o` | open selected source in configured editor |
-| `?` | show key and lifecycle help |
-| `escape` | close the top modal or leave the focused search field |
-| `q` | quit when no modal or dirty form is open |
+| `k` | select previous item |
+| `j` | select next item |
+| `gg` | select first loaded item |
+| `G` | select last loaded item |
+| `ctrl+u` | move up half a visible page |
+| `ctrl+d` | move down half a visible page |
+| `l` | focus or expand item details |
+| `h` | return focus to the item table |
+| `/` | enter search input; Enter applies and Escape returns to normal mode |
+| `a` | open the add form |
+| `i` | open the edit form for the selected item |
+| `gf` | open the selected item's source location |
+| `za` | archive an active item or unarchive an archived item |
+| `:` | open the command line |
+| `?` | show Vim keys, commands, and lifecycle help |
+| `escape` | return to normal mode or close the top non-dirty modal |
 
-Lifecycle actions that are invalid for the selected state are disabled and
-their key press shows a transient explanation. Done, dismiss, and reopen do not
-ask for confirmation. Archive asks for confirmation. Unarchive does not.
+`gg`, `gf`, and `za` are two-key normal-mode sequences. Show the pending prefix
+in the status line and clear it after one second, Escape, or an invalid second
+key. Do not execute either key independently while a prefix is pending.
+
+The `:` key opens a one-line command input in the footer. Enter executes the
+command, Escape cancels it, and the last 50 commands are retained in memory for
+the current process. `k` and `j` navigate command history while the command line
+is focused. Do not persist command history to disk.
+
+Implement exactly these commands:
+
+| Command | Action |
+| --- | --- |
+| `:e` | reload current query and loaded page count from SQLite |
+| `:q` | quit when no dirty form is open |
+| `:add` | open the add form |
+| `:edit` | edit the selected item |
+| `:done` | mark the selected open item done |
+| `:dismiss` | dismiss the selected open item |
+| `:reopen` | reopen the selected done or dismissed item |
+| `:archive` | archive the selected active item |
+| `:unarchive` | restore the selected archived item |
+| `:open` | open the selected source location |
+| `:filters` | open the complete filter screen |
+| `:help` | show the help screen |
+
+Do not implement command abbreviations other than the exact `:e` and `:q`
+names above. Unknown commands leave the command line open and show an error.
+
+Forms use a small modal state model. `j` and `k` move between fields while no
+text widget is being edited; `i` or Enter starts editing the selected field;
+Escape returns from field editing to form normal mode. Form normal mode accepts
+`:w` to validate and submit, `:q` to cancel, and `:wq` as an alias for `:w`
+because a successful submit always closes the form. Cancelling a dirty form
+requires confirmation. Filter forms use the same navigation and `:w`/`:q`
+commands.
+
+Lifecycle commands that are invalid for the selected state are rejected with a
+transient explanation. Done, dismiss, and reopen do not ask for confirmation.
+Archive asks for confirmation. Unarchive does not.
 
 Every lifecycle and archive action uses the selected item's displayed revision.
 On conflict, reload the item and show the expected and actual revisions without
 retrying the action.
 
-The `o` action is disabled when neither `path` nor `cwd` is present. Suspend
-Textual rendering while a terminal editor is active, call the shared editor
-launcher, then resume and refresh. Editor lookup or launch failure is a
-recoverable banner error, not an app crash.
+The `gf` and `:open` actions are disabled when neither `path` nor `cwd` is
+present. Suspend Textual rendering while a terminal editor is active, call the
+shared editor launcher, then resume and refresh. Editor lookup or launch
+failure is a recoverable banner error, not an app crash.
 
 ### TUI non-goals
 
@@ -382,9 +429,9 @@ multi-select, bulk archive, import/export screens, backup screens, database
 configuration screens, or mouse-only interactions in this milestone. Existing
 CLI commands remain the interface for maintenance and bulk operations.
 
-## Emacs Capture Minor Mode
+## Emacs Capture Command
 
-### Package placement and compatibility
+### Library placement and compatibility
 
 Add:
 
@@ -393,23 +440,25 @@ integrations/emacs/friction.el
 tests/emacs/friction-test.el
 ```
 
-`friction.el` is a single self-contained file using lexical binding and only
-built-in Emacs libraries (`json`, `subr-x`, and process APIs). Its package
-header requires Emacs 29.1. It is intended for local installation from this
-repository; publishing to MELPA is out of scope.
+`friction.el` is a single self-contained loadable library using lexical binding
+and only built-in Emacs libraries (`json`, `subr-x`, and process APIs). It
+targets GNU Emacs 30.2 or newer. End the file with `(provide 'friction)` so tests
+and a later configuration task can load it normally.
+
+Do not create an Emacs package recipe, package archive, autoload file,
+straight.el/elpaca declaration, installation script, or package-manager
+integration in this milestone.
 
 Define these public symbols:
 
 - customization group `friction`;
 - `friction-executable`, default `"friction"`;
 - `friction-database-file`, default `nil`, meaning normal database resolution;
-- command `friction-capture`;
-- buffer-local minor mode `friction-mode`;
-- globalized minor mode `global-friction-mode`.
+- command `friction-capture`.
 
-The minor-mode keymap binds only `C-c f c` to `friction-capture`. Do not claim
-`SPC ?` or any Doom/General leader key in the package. The mode has no lighter
-and performs no background work when enabled.
+Do not define a minor mode, global mode, keymap, menu entry, or default binding.
+The later external configuration task will decide how to load and bind the
+command.
 
 ### Capture interaction
 
@@ -481,33 +530,23 @@ Do not retry automatically. A failed capture remains only in minibuffer history;
 it must not fall back to the old JSONL implementation because that could create
 duplicates after a partial success.
 
-### Emacs installation and cutover example
+### Deferred installation and configuration
 
-Document a generic local installation:
+The implementation milestone checks in and tests the library but does not
+install, load, or bind it in the user's Emacs configuration. Do not modify the
+external `configs` repository and do not add active installation instructions
+to the root README.
 
-```elisp
-(add-to-list 'load-path "/path/to/friction/integrations/emacs")
-(require 'friction)
-(global-friction-mode 1)
-```
-
-Document, but do not apply, this Doom-style cutover:
-
-```elisp
-(map! :leader
-      :desc "Capture friction"
-      "?" #'friction-capture)
-```
-
-The cutover instructions must explicitly say to remove or disable the previous
-direct JSONL writer before enabling the new binding. Keeping both writers bound
-is not a supported fallback strategy.
+A later configuration task will load `friction.el`, bind `friction-capture`,
+and remove the previous direct JSONL writer in one cutover. The new library must
+not contain or call the legacy JSONL implementation as a fallback.
 
 ### Emacs non-goals
 
 Do not implement an item list, search, status transitions, editing, source
-opening, history, tabulated-list mode, Transient UI, completion integration, or
-automatic package installation. These are separate future decisions.
+opening, history, minor mode, global mode, keymap, tabulated-list mode,
+Transient UI, completion integration, package metadata, or automatic
+installation. These are separate future decisions.
 
 ## MCP Stdio Server
 
@@ -615,6 +654,13 @@ repository rules defined in the TUI section.
 
 Register exactly these tool names. Tool descriptions must include lifecycle and
 revision requirements so an MCP client can use them without external prose.
+
+The MCP surface provides complete management of the existing Friction domain:
+create, convenient filtered and paginated reads, search, generic update, every
+status transition, archive, unarchive, and history. Friction intentionally has
+no hard-delete operation because deletion would discard the event history;
+archive is the domain's reversible delete semantic. Do not add a
+`friction_delete` tool or physically remove rows.
 
 #### `friction_add`
 
@@ -808,7 +854,8 @@ migration tests; do not merge the three interface test suites together.
 
 Update these durable documents in the same implementation commits:
 
-- `README.md`: installation and launch examples;
+- `README.md`: Python installation plus TUI and MCP launch examples, with no
+  Emacs installation or binding instructions;
 - `docs/architecture.md`: implemented adapter graph and remaining non-goals;
 - `docs/cli.md`: `tui` and `mcp` commands plus database option placement;
 - `docs/json-contract.md`: best-effort Git enrichment for machine capture;
@@ -828,13 +875,14 @@ reviewable commit:
    - add deterministic repository tie-breakers.
 2. **TUI**
    - add Textual dependency and lockfile update;
-   - implement state, screens, workers, refresh, forms, and actions;
+   - implement state, screens, workers, explicit reload, forms, Vim-style
+     normal mode, key prefixes, and command line;
    - add unit and Textual Pilot integration tests;
-   - document launch and keys.
+   - document launch, normal-mode keys, and colon commands.
 3. **Emacs capture**
-   - add the self-contained Elisp package and ERT tests;
-   - add installation and cutover documentation;
-   - add Emacs 29 to CI without changing the external configs repository.
+   - add the self-contained Elisp library and ERT tests;
+   - do not add a mode, bindings, package installation, or config cutover;
+   - add Emacs 30.2 to CI without changing the external configs repository.
 4. **MCP stdio**
    - add the stable MCP SDK dependency and lockfile update;
    - implement operation functions, models, server wiring, tools, resources,
@@ -870,18 +918,22 @@ temporary databases and must cover:
 
 - empty, populated, narrow, and short main-screen rendering;
 - default active/all-status query;
-- search debounce and every filter;
+- search applying only on Enter and every filter;
 - pagination without duplicate IDs;
 - selection preservation across refresh;
-- external database write appearing after refresh;
+- external database write remaining unchanged on screen until `:e`, then
+  appearing after the explicit reload;
 - add and edit validation, success, cancellation, and dirty-close confirmation;
 - every valid and invalid lifecycle action;
 - archive confirmation and unarchive;
 - revision conflict without automatic retry;
-- periodic worker exclusivity and stale-result suppression;
+- worker exclusivity and stale-result suppression;
 - editor open success, missing editor, and item without source context;
 - fatal initial load and recoverable later load errors;
-- all documented keyboard bindings.
+- every documented normal-mode sequence and colon command;
+- one-second prefix timeout, Escape cancellation, and unknown-command errors;
+- form normal/edit mode and `:w`, `:q`, and `:wq` behavior;
+- absence of periodic polling.
 
 Do not add snapshot tests in this milestone. Assert widget state and behavior
 with synthetic fixtures so tests never encode machine-specific paths or
@@ -901,7 +953,8 @@ Run Emacs with `--batch -Q`. ERT tests must cover:
 - success envelope, domain error envelope, malformed output, and nonzero exit;
 - cleanup of private stdout/stderr buffers;
 - simultaneous captures using unique process names;
-- local and global minor-mode bindings.
+- successful `provide`/`require` behavior;
+- absence of modes, keymaps, and default bindings.
 
 The CI command is:
 
@@ -913,7 +966,7 @@ emacs --batch -Q \
 ```
 
 Install Emacs in the macOS CI job with `brew install emacs`, verify that
-`emacs --version` reports 29.1 or newer, and then run the ERT command. Do not
+`emacs --version` reports 30.2 or newer, and then run the ERT command. Do not
 rely on the operating system's bundled Emacs version.
 
 ### MCP tests
@@ -962,8 +1015,8 @@ git diff --check
 git status --short
 ```
 
-Elisp files must also byte-compile without warnings under Emacs 29. Python tests
-must not read or modify the user's real database or friction log.
+Elisp files must also byte-compile without warnings under Emacs 30.2. Python
+tests must not read or modify the user's real database or friction log.
 
 ## Definition of Done
 
@@ -972,12 +1025,13 @@ The milestone is complete only when all of the following are true:
 1. `uv tool install .` installs working `friction tui` and `friction mcp`
    commands without extras.
 2. TUI performs every specified single-item operation and displays history.
-3. TUI observes an external write without restart and never blocks its event
-   loop on database work.
+3. TUI observes an external write after explicit `:e`, performs no periodic
+   polling, and never blocks its event loop on database work.
 4. TUI and MCP reject stale revisions without automatic retry.
 5. `friction-capture` returns control immediately, sends JSON through stdin,
    records Emacs buffer context, and reports the persisted item ID.
-6. Enabling the Emacs package cannot write legacy JSONL.
+6. The Emacs library defines no mode or binding, requires no installation in
+   this milestone, and cannot write legacy JSONL.
 7. MCP exposes exactly the specified stdio tools, resources, and prompt, with no
    network listener.
 8. MCP stdout contains only protocol traffic.
@@ -998,4 +1052,4 @@ specific portion for review rather than silently choosing new behavior.
 
 - [Textual testing guide](https://textual.textualize.io/guide/testing/)
 - [MCP Python SDK stable v1 branch](https://github.com/modelcontextprotocol/python-sdk/tree/v1.x)
-- [GNU Emacs minor-mode definition](https://www.gnu.org/software/emacs/manual/html_node/elisp/Defining-Minor-Modes.html)
+- [GNU Emacs asynchronous processes](https://www.gnu.org/software/emacs/manual/html_node/elisp/Asynchronous-Processes.html)

@@ -8,7 +8,7 @@ The first release covers the domain core, the `fr`/`friction` CLI, migration of
 the existing JSONL logs, canonical JSONL export, and SQLite backups. The next
 interface milestone is fully specified in
 [docs/interfaces.md](docs/interfaces.md): a Textual TUI, capture-only Emacs
-minor mode, and local stdio MCP server. Web, Neovim, and network adapters remain
+command, and local stdio MCP server. Web, Neovim, and network adapters remain
 deferred.
 
 ## Development
