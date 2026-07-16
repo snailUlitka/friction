@@ -13,6 +13,7 @@ from friction.storage.sqlite import (
 
 __all__ = [
     "SQLiteItemRepository",
+    "create_repository",
     "create_service",
     "create_sqlite_engine",
     "current_revision",
@@ -26,8 +27,15 @@ def create_service(
     database_path: str | Path | None = None, *, migrate: bool = True
 ) -> FrictionService:
     """Build the public service backed by a SQLite database."""
+    return FrictionService(create_repository(database_path, migrate=migrate))
+
+
+def create_repository(
+    database_path: str | Path | None = None, *, migrate: bool = True
+) -> SQLiteItemRepository:
+    """Build the concrete repository used by storage-aware adapters."""
     resolved = resolve_database_path(database_path)
     engine = create_sqlite_engine(resolved)
     if migrate:
         upgrade_database(engine)
-    return FrictionService(SQLiteItemRepository(engine))
+    return SQLiteItemRepository(engine)

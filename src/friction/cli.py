@@ -34,12 +34,21 @@ from friction.domain import (
     FrictionError,
     FrictionEvent,
     FrictionItem,
+    ImportFailureError,
     ItemPatch,
     ItemSource,
     ItemStatus,
     StorageError,
 )
-from friction.storage import create_service
+from friction.interfaces.jsonl import (
+    ExportResult,
+    ImportReport,
+    JsonlImporter,
+    canonical_jsonl,
+    write_jsonl_export,
+)
+from friction.interfaces.maintenance import backup_database, doctor_database
+from friction.storage import create_repository, create_service
 
 app = typer.Typer(help="Track workflow friction locally.")
 
@@ -642,6 +651,124 @@ def open_item(
 
     item = _call(output, operation)
     _emit_item(item, output, verb="Opened")
+
+
+@app.command("import-jsonl")
+def import_jsonl(
+    ctx: typer.Context,
+    source: Annotated[Path, typer.Argument(help="JSONL file or directory.")],
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Validate without touching a database.")
+    ] = False,
+    output: Annotated[OutputMode, typer.Option("--output")] = OutputMode.HUMAN,
+) -> None:
+    """Validate and idempotently import legacy or canonical JSONL."""
+
+    def operation() -> ImportReport:
+        repository = None
+        if not dry_run:
+            repository = create_repository(_state(ctx).database_path)
+        return JsonlImporter(repository).run(source, dry_run=dry_run)
+
+    report = _call(output, operation)
+    if not report.ok:
+        _abort(
+            ImportFailureError(
+                f"Import found {len(report.issues)} invalid JSONL record(s).",
+                details=report.as_dict(),
+            ),
+            output,
+        )
+    if output is OutputMode.JSON:
+        _write_json(success_envelope(report.as_dict()))
+    elif dry_run:
+        typer.echo(
+            f"fr: dry-run validated {report.valid_records} record(s) "
+            f"from {report.files} file(s)"
+        )
+    else:
+        typer.echo(
+            f"fr: imported {report.imported} record(s), skipped {report.skipped} "
+            f"from {report.files} file(s)"
+        )
+
+
+@app.command("export")
+def export_jsonl(
+    ctx: typer.Context,
+    export_format: Annotated[str, typer.Option("--format")] = "jsonl",
+    destination: Annotated[
+        Path | None,
+        typer.Option("--output", help="Output file or directory; defaults to stdout."),
+    ] = None,
+    statuses: Annotated[list[ItemStatus] | None, typer.Option("--status")] = None,
+    sources: Annotated[list[ItemSource] | None, typer.Option("--source")] = None,
+    tags: Annotated[list[str] | None, typer.Option("--tag")] = None,
+    force: Annotated[bool, typer.Option("--force")] = False,
+) -> None:
+    """Export canonical JSONL v1 to stdout, a file, or a directory."""
+
+    def operation() -> ExportResult:
+        if export_format != "jsonl":
+            raise CliInputError("Only --format jsonl is supported.")
+        result = canonical_jsonl(
+            _service(ctx),
+            statuses=tuple(statuses or ()),
+            sources=tuple(sources or ()),
+            tags=tuple(tags or ()),
+        )
+        if destination is not None:
+            result = write_jsonl_export(result, destination, force=force)
+        return result
+
+    result = _call(OutputMode.HUMAN, operation)
+    if result.path is not None:
+        typer.echo(f"fr: exported {result.count} item(s) to {result.path}")
+    else:
+        for line in result.lines:
+            typer.echo(line)
+
+
+@app.command("backup")
+def backup(
+    ctx: typer.Context,
+    destination: Annotated[Path, typer.Argument(help="Backup file or directory.")],
+    force: Annotated[bool, typer.Option("--force")] = False,
+    output: Annotated[OutputMode, typer.Option("--output")] = OutputMode.HUMAN,
+) -> None:
+    """Create a verified online SQLite backup."""
+    result = _call(
+        output,
+        lambda: backup_database(
+            _state(ctx).database_path, destination, force=force
+        ),
+    )
+    if output is OutputMode.JSON:
+        _write_json(success_envelope(result.as_dict()))
+    else:
+        typer.echo(f"fr: backed up database to {result.path} ({result.size} bytes)")
+
+
+@app.command("doctor")
+def doctor(
+    ctx: typer.Context,
+    output: Annotated[OutputMode, typer.Option("--output")] = OutputMode.HUMAN,
+) -> None:
+    """Check the database, migrations, FTS, editor, and Git."""
+    report = _call(output, lambda: doctor_database(_state(ctx).database_path))
+    if not report.ok:
+        _abort(
+            StorageError(
+                "One or more required doctor checks failed.",
+                details=report.as_dict(),
+            ),
+            output,
+        )
+    if output is OutputMode.JSON:
+        _write_json(success_envelope(report.as_dict()))
+    else:
+        for check in report.checks:
+            typer.echo(f"{check.status:7} {check.name}: {check.detail}")
 
 
 def main() -> None:

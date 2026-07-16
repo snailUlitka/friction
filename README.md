@@ -22,6 +22,7 @@ Typical local usage:
 uv run friction add "what felt slow or annoying"
 uv run friction list
 uv run friction search "clipboard"
+uv run friction import-jsonl ~/friction-log --dry-run
 ```
 
 The supported runtime is Python 3.12+ on macOS. See [docs/README.md](docs/README.md)

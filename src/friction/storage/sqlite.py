@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Engine,
@@ -27,10 +27,12 @@ from sqlalchemy.engine import URL, CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload, sessionmaker
 
+from friction.application.imports import ImportRecord, StoredImportResult
 from friction.application.ports import ArchiveFilter, ItemQuery
 from friction.domain.errors import (
     AmbiguousIdentifierError,
     DuplicateItemError,
+    ImportFailureError,
     ItemNotFoundError,
     RevisionConflictError,
     StorageError,
@@ -45,6 +47,7 @@ from friction.domain.statuses import ItemStatus
 from friction.storage.orm import (
     EventRow,
     FrictionItemRow,
+    ImportRow,
     TagRow,
     item_tags,
     tag_names,
@@ -302,6 +305,55 @@ class SQLiteItemRepository:
                 .order_by(EventRow.occurred_at, EventRow.id)
             )
             return [_domain_event(row) for row in session.scalars(statement)]
+
+    def import_records(
+        self, records: tuple[ImportRecord, ...]
+    ) -> StoredImportResult:
+        """Persist one validated JSONL file in a single transaction."""
+        if not records:
+            return StoredImportResult(imported=0, skipped=0)
+        fingerprints = [record.provenance.fingerprint for record in records]
+        try:
+            with self._sessions.begin() as session:
+                existing = set(
+                    session.scalars(
+                        select(ImportRow.fingerprint).where(
+                            ImportRow.fingerprint.in_(fingerprints)
+                        )
+                    )
+                )
+                imported = 0
+                for record in records:
+                    if record.provenance.fingerprint in existing:
+                        continue
+                    row = FrictionItemRow(**_item_values(record.item))
+                    row.tags = self._tags(session, record.item.tags)
+                    session.add(row)
+                    session.flush()
+                    session.add(_event_row(record.event))
+                    session.add(
+                        ImportRow(
+                            id=str(uuid4()),
+                            item_id=str(record.item.id),
+                            source_path=str(record.provenance.source_path),
+                            source_line=record.provenance.source_line,
+                            source_format=record.provenance.source_format,
+                            fingerprint=record.provenance.fingerprint,
+                            raw_sha256=record.provenance.raw_sha256,
+                            imported_at=_required_timestamp(
+                                record.provenance.imported_at
+                            ),
+                        )
+                    )
+                    self._sync_fts(session, record.item)
+                    imported += 1
+                return StoredImportResult(
+                    imported=imported, skipped=len(records) - imported
+                )
+        except IntegrityError as error:
+            raise ImportFailureError(
+                "Import conflicts with an existing item or provenance record."
+            ) from error
 
     def _resolve_row(self, session: Session, identifier: str | UUID) -> FrictionItemRow:
         text_identifier = str(identifier).strip().lower()

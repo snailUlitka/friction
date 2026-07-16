@@ -82,3 +82,9 @@ class DuplicateItemError(FrictionError):
     """Raised when an item UUID already exists."""
 
     code = "duplicate_item"
+
+
+class ImportFailureError(FrictionError):
+    """Raised when an import cannot be validated or persisted."""
+
+    code = "import_error"

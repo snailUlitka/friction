@@ -1,0 +1,3 @@
+{"timestamp":"2026-05-05T10:00:00+0400","filetype":null,"path":"/tmp/project","line":null,"git_repo":"project","git_branch":"main","source":"cli","status":"wip","note":"synthetic CLI friction"}
+{"timestamp":"2026-05-10T11:00:00+0400","major-mode":"emacs-lisp-mode","path":"/tmp/configs/init.el","line":12,"git-repo":"/tmp/configs","git-branch":"main","source":"emacs","status":"wip","note":"synthetic Emacs friction"}
+{"timestamp":"2026-06-29T12:00:00+04:00","filetype":"python","path":"/tmp/project/app.py","line":7,"git_repo":"project","git_branch":"feature","source":"nvim","status":"wip","note":"synthetic Neovim friction"}

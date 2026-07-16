@@ -52,3 +52,19 @@ The command is parsed without a shell. Source positions are passed as
 - `5`: storage or operating-system failure
 - `6`: import failure
 
+## Import, export, backup, and diagnosis
+
+```shell
+friction import-jsonl ~/friction-log --dry-run
+friction import-jsonl ~/friction-log
+friction export --format jsonl --output backup/
+friction backup backup/
+friction doctor
+```
+
+Dry-run parses every source file without creating or migrating the configured
+database. A real directory import commits each valid file independently and
+returns exit code 6 if any file is invalid. Canonical export includes active and
+archived items by default. `backup` is the complete SQLite backup including
+events and import provenance; `doctor` checks schema, pragmas, integrity, FTS5,
+Git, and editor configuration.
