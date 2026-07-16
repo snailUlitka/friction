@@ -1,0 +1,22 @@
+# Engineering Harness
+
+This directory is the durable knowledge base for Friction. The root
+`AGENTS.md` stays short and operational; rationale, contracts, and repeatable
+maintenance procedures live here.
+
+## Documentation Map
+
+- `architecture.md` defines boundaries, data flow, and dependency direction.
+- `domain.md` defines lifecycle and concurrency invariants.
+- `json-contract.md` defines the stable machine interface.
+- `import-export.md` defines legacy normalization and portable data behavior.
+- `validation.md` defines local and CI checks.
+
+## Maintenance Rules
+
+- Update the relevant document in the same commit as a behavior or contract
+  change.
+- Prefer decisions and invariants over implementation narration.
+- Do not copy private friction notes, local database contents, or machine state
+  into documentation or fixtures.
+
