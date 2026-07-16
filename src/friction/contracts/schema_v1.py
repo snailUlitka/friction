@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from friction.domain.models import (
     CreateItem,
+    FrictionEvent,
     FrictionItem,
     ItemPatch,
     ItemSource,
@@ -144,6 +145,40 @@ class ItemListData(ContractModel):
         """Create a collection payload."""
         return cls(
             items=[ItemData.from_domain(item) for item in items], count=len(items)
+        )
+
+
+class EventData(ContractModel):
+    """Canonical event representation."""
+
+    id: UUID
+    item_id: UUID
+    event_type: str
+    occurred_at: datetime
+    from_revision: int | None
+    to_revision: int
+    payload: dict[str, JsonValue]
+
+    @classmethod
+    def from_domain(cls, event: FrictionEvent) -> EventData:
+        """Create a wire event from domain state."""
+        return cls.model_validate(event.model_dump())
+
+
+class ItemDetailData(ContractModel):
+    """One item and optionally requested history."""
+
+    item: ItemData
+    events: list[EventData]
+
+    @classmethod
+    def from_domain(
+        cls, item: FrictionItem, events: list[FrictionEvent] | None = None
+    ) -> ItemDetailData:
+        """Create a detail payload."""
+        return cls(
+            item=ItemData.from_domain(item),
+            events=[EventData.from_domain(event) for event in events or []],
         )
 
 

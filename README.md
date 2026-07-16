@@ -16,6 +16,13 @@ uv run pytest
 uv run friction --help
 ```
 
+Typical local usage:
+
+```shell
+uv run friction add "what felt slow or annoying"
+uv run friction list
+uv run friction search "clipboard"
+```
+
 The supported runtime is Python 3.12+ on macOS. See [docs/README.md](docs/README.md)
 for the architecture and validation map.
-

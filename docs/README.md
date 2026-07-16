@@ -7,6 +7,7 @@ maintenance procedures live here.
 ## Documentation Map
 
 - `architecture.md` defines boundaries, data flow, and dependency direction.
+- `cli.md` defines human commands, machine mode, and exit behavior.
 - `domain.md` defines lifecycle and concurrency invariants.
 - `json-contract.md` defines the stable machine interface.
 - `import-export.md` defines legacy normalization and portable data behavior.
@@ -19,4 +20,3 @@ maintenance procedures live here.
 - Prefer decisions and invariants over implementation narration.
 - Do not copy private friction notes, local database contents, or machine state
   into documentation or fixtures.
-

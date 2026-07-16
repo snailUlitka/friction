@@ -19,3 +19,6 @@ Lifecycle changes use dedicated operations. The generic update operation may
 change note, source context, tags, and metadata, and requires the current
 revision.
 
+Machine capture and update requests use `{schema_version: 1, data: ...}`.
+Unknown fields are rejected. Item timestamps are RFC 3339 strings and IDs are
+full UUIDs; human commands may resolve an unambiguous UUID prefix.
