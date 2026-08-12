@@ -82,3 +82,19 @@ friction --db /tmp/friction.db tui
 
 The command has no interface-specific options. See `tui.md` for its Vim-style
 keys, colon commands, forms, filters, and concurrency behavior.
+
+## MCP stdio server
+
+`friction mcp` starts the local MCP server and owns stdout exclusively for MCP
+protocol traffic. It applies migrations first and accepts no host, port,
+transport, authentication, or daemon options. Put the root database option
+before the subcommand:
+
+```shell
+friction mcp
+friction --db /tmp/friction.db mcp
+```
+
+The command is normally launched by an MCP host rather than typed into an
+interactive terminal. See `mcp.md` for host configuration, exposed operations,
+and the private-data trust boundary.

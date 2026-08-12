@@ -13,8 +13,9 @@ maintenance procedures live here.
 - `import-export.md` defines legacy normalization and portable data behavior.
 - `tui.md` defines the terminal interface and its Vim-style interaction.
 - `../integrations/emacs/README.md` documents the standalone local Emacs mode.
-- `interfaces.md` specifies the planned TUI, Emacs capture, and local MCP
-  milestone.
+- `mcp.md` defines the local stdio server and its trust boundary.
+- `interfaces.md` records the complete TUI, Emacs capture, and local MCP
+  milestone requirements.
 - `validation.md` defines local and CI checks.
 
 ## Maintenance Rules

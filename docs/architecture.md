@@ -3,8 +3,8 @@
 Friction is a layered Python package with a single domain and application core.
 
 ```text
-CLI / JSON / Textual adapters
-             |
+CLI / JSON / Textual / MCP adapters
+                   |
 Application service and repository protocol
         |
 Domain models and lifecycle rules
@@ -25,8 +25,8 @@ SQLite runs with foreign keys, WAL, and a five-second busy timeout. Packaged
 Alembic migrations are applied before normal database-backed commands; tests
 validate both fresh and repeated upgrades.
 
-The Textual TUI is an implemented local adapter over the public application
-service. The standalone Emacs mode is a thin asynchronous client of the JSON
-CLI and never opens SQLite. MCP remains in progress for the interface milestone
-specified in `interfaces.md`. FastAPI, web, Neovim, and network MCP remain
-outside that milestone.
+The Textual TUI and stdio MCP server are implemented local adapters over the
+public application service. The standalone Emacs mode is a thin asynchronous
+client of the JSON CLI and never opens SQLite. FastAPI, web, Neovim, network
+MCP, remote access, and sync remain outside the implemented interface
+milestone.

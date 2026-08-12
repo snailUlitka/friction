@@ -712,6 +712,18 @@ def tui(ctx: typer.Context) -> None:
     _call(OutputMode.HUMAN, operation)
 
 
+@app.command("mcp")
+def mcp(ctx: typer.Context) -> None:
+    """Run the local stdio MCP server."""
+
+    def operation() -> None:
+        from friction.interfaces.mcp import run_mcp
+
+        run_mcp(_state(ctx).database_path)
+
+    _call(OutputMode.HUMAN, operation)
+
+
 def main() -> None:
     """Run the command-line interface."""
     app()
