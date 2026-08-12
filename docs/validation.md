@@ -8,13 +8,17 @@ uv run ruff check .
 uv run mypy src tests
 uv run pytest --cov=friction --cov-report=term-missing --cov-fail-under=90
 uv run pytest tests/migration
+emacs --batch -Q -L integrations/emacs \
+  -l tests/emacs/friction-test.el -f ert-run-tests-batch-and-exit
 uv run friction --help
 git diff --check
 git status --short
 ```
 
 GitHub Actions runs the same sequence on `macos-latest` with Python 3.12, then
-builds the wheel and smoke-tests packaged migrations through `doctor`.
+builds the wheel and smoke-tests packaged migrations through `doctor`. Emacs
+validation requires GNU Emacs 30.2 or newer and byte-compiles `friction.el`
+with warnings treated as errors.
 
 Tests use temporary databases and synthetic JSONL fixtures. Validation against
 the user's real `~/friction-log` must use dry-run or a temporary database and

@@ -8,7 +8,7 @@ decisions that are not recorded here.
 The milestone contains all three required interfaces:
 
 1. a full terminal user interface;
-2. an Emacs capture command;
+2. a configurable Emacs capture minor mode;
 3. a local MCP server using only the stdio transport.
 
 All three must be delivered. The implementation sequence later in this document
@@ -24,10 +24,13 @@ the current v1 release until its corresponding acceptance criteria are met.
 - The TUI is built with Textual and is launched with `friction tui` or `fr tui`.
 - The TUI provides complete single-item management. It does not provide
   multi-selection or bulk actions in this milestone.
-- The Emacs integration is one loadable `friction-capture` command. It only
-  captures new items and does not define a mode or any key bindings.
+- The Emacs integration is a self-contained loadable library with
+  `friction-mode`, `global-friction-mode`, and `friction-capture`. It only
+  captures new items; its mode-local binding and capture behavior are
+  customizable.
 - The Emacs command calls the JSON CLI asynchronously and never opens SQLite.
-  Package installation and configuration integration are deferred.
+  It is usable directly from this repository and is not published to a package
+  archive.
 - The MCP server is local-only and stdio-only. It provides resources, a prompt,
   read tools, and mutation tools. It has no HTTP listener, authentication, or
   background daemon.
@@ -39,8 +42,7 @@ the current v1 release until its corresponding acceptance criteria are met.
   introduce a schema version 2.
 - Neovim, FastAPI, browser UI, Streamable HTTP MCP, remote access, sync, and
   notifications are out of scope.
-- The external `configs` repository is not modified. Installing or binding the
-  Emacs command in that repository is a later task.
+- No external configuration repository or user configuration is modified.
 
 ## User Outcomes
 
@@ -48,8 +50,9 @@ After the milestone, a user can:
 
 - run `friction tui` and manage the complete lifecycle of local items without
   remembering CLI subcommands;
-- load the development `friction.el` file and call `friction-capture` to record
-  the current Emacs buffer context;
+- load the repository's `friction.el`, enable `friction-mode` or
+  `global-friction-mode`, and capture the current Emacs buffer context using a
+  customizable mode-local binding;
 - configure an MCP host to launch `friction mcp` and let an agent inspect or
   mutate the same local database;
 - observe a write made by any interface in the others without restarting them;
@@ -429,7 +432,7 @@ multi-select, bulk archive, import/export screens, backup screens, database
 configuration screens, or mouse-only interactions in this milestone. Existing
 CLI commands remain the interface for maintenance and bulk operations.
 
-## Emacs Capture Command
+## Emacs Capture Mode
 
 ### Library placement and compatibility
 
@@ -442,23 +445,32 @@ tests/emacs/friction-test.el
 
 `friction.el` is a single self-contained loadable library using lexical binding
 and only built-in Emacs libraries (`json`, `subr-x`, and process APIs). It
-targets GNU Emacs 30.2 or newer. End the file with `(provide 'friction)` so tests
-and a later configuration task can load it normally.
+targets GNU Emacs 30.2 or newer. End the file with `(provide 'friction)` so it
+can be loaded directly from the repository or added to `load-path` normally.
 
-Do not create an Emacs package recipe, package archive, autoload file,
-straight.el/elpaca declaration, installation script, or package-manager
-integration in this milestone.
+Do not create a package archive, straight.el/elpaca declaration, installation
+script, or package-manager integration. The library itself must nevertheless be
+a complete configurable Emacs package rather than a configuration snippet.
 
 Define these public symbols:
 
 - customization group `friction`;
 - `friction-executable`, default `"friction"`;
 - `friction-database-file`, default `nil`, meaning normal database resolution;
-- command `friction-capture`.
+- `friction-capture-key`, default `"C-c C-f"`, active only in
+  `friction-mode`;
+- `friction-capture-prompt`, default `"Friction note: "`;
+- `friction-default-tags`, default nil;
+- command `friction-capture`;
+- buffer-local minor mode `friction-mode`;
+- globalized minor mode `global-friction-mode`.
 
-Do not define a minor mode, global mode, keymap, menu entry, or default binding.
-The later external configuration task will decide how to load and bind the
-command.
+`friction-mode` has a sparse public keymap named `friction-mode-map`. Its only
+default binding is `friction-capture-key`; changing the customization updates
+the map without requiring the library to be reloaded. The global mode enables
+the buffer-local mode in ordinary user buffers and skips minibuffers and
+internal buffers whose names start with a space. Do not add global bindings or
+menu entries.
 
 ### Capture interaction
 
@@ -467,7 +479,7 @@ command.
 1. Snapshot the originating buffer and point before opening the minibuffer.
 2. Verify that `friction-executable` resolves with `executable-find`; otherwise
    raise `user-error` without starting a process.
-3. Prompt with `Friction note: ` using `read-string`.
+3. Prompt with `friction-capture-prompt` using `read-string`.
 4. Reject a note that is empty after trimming.
 5. Build a JSON v1 add request from the snapshot.
 6. Start the CLI asynchronously, write the JSON request to stdin, and close
@@ -493,6 +505,7 @@ The payload is:
     "column": 1,
     "cwd": "/absolute/default-directory",
     "filetype": "python-mode",
+    "tags": [],
     "metadata": {
       "emacs.buffer_name": "example.py"
     }
@@ -504,7 +517,8 @@ Omit unavailable optional fields instead of sending empty strings. `line` and
 `column` are one-based. `path` is the expanded `buffer-file-name` when present.
 `cwd` is expanded `default-directory` with its directory-file-name form.
 `filetype` is the current `major-mode` symbol name. Buffer name is metadata,
-not a substitute for a file path. The JSON CLI performs best-effort Git context
+not a substitute for a file path. `tags` contains
+`friction-default-tags`. The JSON CLI performs best-effort Git context
 enrichment from cwd as specified above.
 
 The process command is exactly:
@@ -530,23 +544,22 @@ Do not retry automatically. A failed capture remains only in minibuffer history;
 it must not fall back to the old JSONL implementation because that could create
 duplicates after a partial success.
 
-### Deferred installation and configuration
+### Local loading and configuration
 
-The implementation milestone checks in and tests the library but does not
-install, load, or bind it in the user's Emacs configuration. Do not modify the
-external `configs` repository and do not add active installation instructions
-to the root README.
+The implementation checks in and tests the library but does not install or load
+it in the user's Emacs configuration. Do not modify any external repository or
+user configuration. Document loading the file directly, adding its directory
+to `load-path`, enabling either mode, and customizing its public options in
+`integrations/emacs/README.md`.
 
-A later configuration task will load `friction.el`, bind `friction-capture`,
-and remove the previous direct JSONL writer in one cutover. The new library must
-not contain or call the legacy JSONL implementation as a fallback.
+The library must not contain or call the legacy JSONL implementation as a
+fallback.
 
 ### Emacs non-goals
 
 Do not implement an item list, search, status transitions, editing, source
-opening, history, minor mode, global mode, keymap, tabulated-list mode,
-Transient UI, completion integration, package metadata, or automatic
-installation. These are separate future decisions.
+opening, history, tabulated-list mode, Transient UI, completion integration, or
+automatic installation. These are separate future decisions.
 
 ## MCP Stdio Server
 
@@ -879,9 +892,10 @@ reviewable commit:
      normal mode, key prefixes, and command line;
    - add unit and Textual Pilot integration tests;
    - document launch, normal-mode keys, and colon commands.
-3. **Emacs capture**
-   - add the self-contained Elisp library and ERT tests;
-   - do not add a mode, bindings, package installation, or config cutover;
+3. **Emacs capture mode**
+   - add the self-contained configurable Elisp library and ERT tests;
+   - add local and global minor modes with a customizable mode-local binding;
+   - do not add package-manager installation or modify external configuration;
    - add Emacs 30.2 to CI without changing the external configs repository.
 4. **MCP stdio**
    - add the stable MCP SDK dependency and lockfile update;
@@ -954,7 +968,8 @@ Run Emacs with `--batch -Q`. ERT tests must cover:
 - cleanup of private stdout/stderr buffers;
 - simultaneous captures using unique process names;
 - successful `provide`/`require` behavior;
-- absence of modes, keymaps, and default bindings.
+- local and global mode enablement, internal-buffer exclusion, mode-local
+  binding customization, default tags, and absence of global bindings.
 
 The CI command is:
 
@@ -1030,8 +1045,9 @@ The milestone is complete only when all of the following are true:
 4. TUI and MCP reject stale revisions without automatic retry.
 5. `friction-capture` returns control immediately, sends JSON through stdin,
    records Emacs buffer context, and reports the persisted item ID.
-6. The Emacs library defines no mode or binding, requires no installation in
-   this milestone, and cannot write legacy JSONL.
+6. The Emacs library provides configurable local and global modes, has no
+   global binding or external installation side effect, and cannot write legacy
+   JSONL.
 7. MCP exposes exactly the specified stdio tools, resources, and prompt, with no
    network listener.
 8. MCP stdout contains only protocol traffic.

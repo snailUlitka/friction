@@ -10,6 +10,8 @@ Application service and repository protocol
 Domain models and lifecycle rules
         |
 SQLAlchemy repository / SQLite / Alembic
+
+Emacs capture mode -> CLI JSON v1 -> application service
 ```
 
 Dependencies point inward. Domain and application code do not import Typer,
@@ -24,6 +26,7 @@ Alembic migrations are applied before normal database-backed commands; tests
 validate both fresh and repeated upgrades.
 
 The Textual TUI is an implemented local adapter over the public application
-service. MCP and Emacs remain in progress for the next interface milestone
+service. The standalone Emacs mode is a thin asynchronous client of the JSON
+CLI and never opens SQLite. MCP remains in progress for the interface milestone
 specified in `interfaces.md`. FastAPI, web, Neovim, and network MCP remain
 outside that milestone.

@@ -1,0 +1,23 @@
+#!/bin/sh
+
+IFS= read -r payload
+
+case "${FRICTION_EMACS_FAKE_CASE:-success}" in
+  success)
+    printf '%s\n' '{"schema_version":1,"data":{"id":"12345678-1234-5678-1234-567812345678"},"error":null}'
+    ;;
+  domain)
+    printf '%s\n' '{"schema_version":1,"data":null,"error":{"code":"validation_error","message":"bad capture","details":{}}}'
+    exit 2
+    ;;
+  malformed)
+    printf '%s\n' 'not-json'
+    printf '%s' 'malformed output' >&2
+    ;;
+  nonzero)
+    printf '%s' 'storage unavailable' >&2
+    exit 5
+    ;;
+esac
+
+test -n "$payload"
