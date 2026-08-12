@@ -68,3 +68,17 @@ returns exit code 6 if any file is invalid. Canonical export includes active and
 archived items by default. `backup` is the complete SQLite backup including
 events and import provenance; `doctor` checks schema, pragmas, integrity, FTS5,
 Git, and editor configuration.
+
+## Terminal interface
+
+`friction tui` opens the Textual interface over the same database and applies
+packaged migrations before the event loop starts. Put the root database option
+before the subcommand:
+
+```shell
+friction tui
+friction --db /tmp/friction.db tui
+```
+
+The command has no interface-specific options. See `tui.md` for its Vim-style
+keys, colon commands, forms, filters, and concurrency behavior.

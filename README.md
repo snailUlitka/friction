@@ -36,6 +36,7 @@ Typical local usage:
 uv run friction add "what felt slow or annoying"
 uv run friction list
 uv run friction search "clipboard"
+uv run friction tui
 uv run friction import-jsonl ~/friction-log --dry-run
 ```
 

@@ -700,6 +700,18 @@ def doctor(
             typer.echo(f"{check.status:7} {check.name}: {check.detail}")
 
 
+@app.command("tui")
+def tui(ctx: typer.Context) -> None:
+    """Open the local Textual interface."""
+
+    def operation() -> None:
+        from friction.interfaces.tui import run_tui
+
+        run_tui(_state(ctx).database_path)
+
+    _call(OutputMode.HUMAN, operation)
+
+
 def main() -> None:
     """Run the command-line interface."""
     app()

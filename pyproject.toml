@@ -12,6 +12,7 @@ dependencies = [
     "alembic>=1.15,<2",
     "pydantic>=2.10,<3",
     "sqlalchemy>=2.0,<3",
+    "textual>=8.2,<9",
     "typer>=0.15,<1",
 ]
 
