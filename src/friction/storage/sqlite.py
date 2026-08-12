@@ -225,7 +225,9 @@ class SQLiteItemRepository:
     def list(self, query: ItemQuery) -> builtins.list[FrictionItem]:
         with self._sessions() as session:
             statement = self._filtered_statement(query)
-            statement = statement.order_by(FrictionItemRow.created_at.desc())
+            statement = statement.order_by(
+                FrictionItemRow.created_at.desc(), FrictionItemRow.id.desc()
+            )
             statement = statement.offset(query.offset).limit(query.limit)
             rows = session.scalars(statement).unique().all()
             return [_domain_item(row) for row in rows]
@@ -241,7 +243,7 @@ class SQLiteItemRepository:
                 text(
                     "SELECT item_id FROM friction_items_fts "
                     "WHERE friction_items_fts MATCH :query "
-                    "ORDER BY bm25(friction_items_fts) LIMIT 1000"
+                    "ORDER BY bm25(friction_items_fts), item_id ASC LIMIT 1000"
                 ),
                 {"query": fts_query},
             ).scalars()

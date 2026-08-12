@@ -6,8 +6,14 @@ import pytest
 from typer.testing import CliRunner, Result
 
 from friction import cli
-from friction.cli import CliInputError, app
+from friction.cli import app
 from friction.domain import CreateItem
+from friction.interfaces.editor import (
+    EditorError,
+    editor_command,
+    launch_editor,
+    resolved_source,
+)
 
 runner = CliRunner()
 
@@ -139,7 +145,7 @@ def test_cli_edit_and_open_use_adapter_helpers(
     monkeypatch.setattr(cli, "_edit_text", lambda _initial: "after")
     monkeypatch.setattr(
         cli,
-        "_launch_editor",
+        "launch_editor",
         lambda target, line=None, column=None: opened.append((target, line, column)),
     )
 
@@ -166,13 +172,13 @@ def test_cli_returns_versioned_validation_errors(tmp_path: Path) -> None:
 
 
 def test_editor_chain_requires_an_executable() -> None:
-    assert cli._editor_command({"EDITOR": "/usr/bin/true"}) == ["/usr/bin/true"]
+    assert editor_command({"EDITOR": "/usr/bin/true"}) == ["/usr/bin/true"]
 
-    with pytest.raises(CliInputError):
-        cli._editor_command({})
+    with pytest.raises(EditorError):
+        editor_command({})
 
-    with pytest.raises(CliInputError):
-        cli._editor_command({"EDITOR": "/missing/friction-editor"})
+    with pytest.raises(EditorError):
+        editor_command({"EDITOR": "/missing/friction-editor"})
 
 
 def test_human_prompt_show_and_dismiss_workflow(tmp_path: Path) -> None:
@@ -261,22 +267,56 @@ def test_cli_helper_edge_cases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
         note="relative", path="relative.py", cwd=str(tmp_path)
     ).to_item()
 
-    assert cli._resolved_source(item) == relative.resolve()
-    assert cli._git_context(tmp_path)["git_root"] is None
+    assert resolved_source(item) == relative.resolve()
     assert cli._exit_code("not_found") == 3
     assert cli._exit_code("revision_conflict") == 4
     assert cli._exit_code("import_error") == 6
     assert cli._exit_code("storage_error") == 5
 
-    monkeypatch.setattr(cli, "_editor_command", lambda: ["/usr/bin/false"])
-    with pytest.raises(CliInputError):
-        cli._launch_editor(relative)
+    with pytest.raises(EditorError):
+        launch_editor(relative, environment={"EDITOR": "/usr/bin/false"})
 
 
 def test_edit_text_reads_editor_result(monkeypatch: pytest.MonkeyPatch) -> None:
     def replace_note(target: Path, **_kwargs: Any) -> None:
         target.write_text("changed in editor\n", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "_launch_editor", replace_note)
+    monkeypatch.setattr(cli, "launch_editor", replace_note)
 
     assert cli._edit_text("initial") == "changed in editor"
+
+
+def test_machine_capture_enriches_only_omitted_git_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "friction.db"
+    def discovered_context(
+        _cwd: str | Path | None, *, supplied_fields: set[str]
+    ) -> dict[str, str | None]:
+        assert "git_repo" in supplied_fields
+        return {
+            "git_root": "/discovered/root",
+            "git_branch": "main",
+            "git_commit": "abc123",
+        }
+
+    monkeypatch.setattr(cli, "missing_git_context", discovered_context)
+    request = {
+        "schema_version": 1,
+        "data": {
+            "note": "thin editor capture",
+            "cwd": str(tmp_path),
+            "git_repo": "explicit",
+        },
+    }
+
+    result = _invoke(
+        database,
+        ["add", "--input-json", "-", "--output", "json"],
+        stdin=json.dumps(request),
+    )
+
+    assert result.exit_code == 0, result.output
+    data = _json(result)["data"]
+    assert data["git_repo"] == "explicit"
+    assert data["git_branch"] == "main"

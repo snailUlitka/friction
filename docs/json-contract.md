@@ -22,3 +22,9 @@ revision.
 Machine capture and update requests use `{schema_version: 1, data: ...}`.
 Unknown fields are rejected. Item timestamps are RFC 3339 strings and IDs are
 full UUIDs; human commands may resolve an unambiguous UUID prefix.
+
+For machine capture, a provided `cwd` enables best-effort Git enrichment. The
+CLI discovers `git_root`, `git_repo`, `git_branch`, and `git_commit` only when
+the corresponding field is absent from the request. An explicitly supplied
+value, including `null`, is authoritative. Missing Git, a non-repository cwd,
+detached HEAD, and individual Git command failures never prevent capture.

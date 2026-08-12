@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
-import shlex
-import shutil
-import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -40,6 +36,8 @@ from friction.domain import (
     ItemStatus,
     StorageError,
 )
+from friction.interfaces.context import git_context, missing_git_context
+from friction.interfaces.editor import launch_editor, resolved_source
 from friction.interfaces.jsonl import (
     ExportResult,
     ImportReport,
@@ -227,67 +225,6 @@ def _read_input_json(source: str) -> str:
     return Path(source).expanduser().read_text(encoding="utf-8")
 
 
-def _git_value(cwd: Path, *arguments: str) -> str | None:
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(cwd), *arguments],
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    value = result.stdout.strip()
-    return value if result.returncode == 0 and value else None
-
-
-def _git_context(cwd: Path) -> dict[str, str | None]:
-    root = _git_value(cwd, "rev-parse", "--show-toplevel")
-    if root is None:
-        return {
-            "git_root": None,
-            "git_repo": None,
-            "git_branch": None,
-            "git_commit": None,
-        }
-    root_path = Path(root)
-    return {
-        "git_root": str(root_path),
-        "git_repo": root_path.name,
-        "git_branch": _git_value(root_path, "branch", "--show-current"),
-        "git_commit": _git_value(root_path, "rev-parse", "HEAD"),
-    }
-
-
-def _editor_command(environment: Mapping[str, str] | None = None) -> list[str]:
-    environ = os.environ if environment is None else environment
-    for variable in ("FRICTION_EDITOR", "VISUAL", "EDITOR"):
-        value = environ.get(variable, "").strip()
-        if value:
-            command = shlex.split(value)
-            if command and shutil.which(command[0]) is not None:
-                return command
-            raise CliInputError(f"Editor from {variable} is not executable.")
-    raise CliInputError("Set FRICTION_EDITOR, VISUAL, or EDITOR first.")
-
-
-def _launch_editor(
-    target: Path,
-    *,
-    line: int | None = None,
-    column: int | None = None,
-) -> None:
-    command = _editor_command()
-    position: list[str] = []
-    if line is not None:
-        suffix = f":{column}" if column is not None else ""
-        position = [f"+{line}{suffix}"]
-    result = subprocess.run([*command, *position, str(target)], check=False)
-    if result.returncode != 0:
-        raise CliInputError(f"Editor exited with status {result.returncode}.")
-
-
 def _edit_text(initial: str) -> str:
     temporary_path: Path | None = None
     try:
@@ -298,24 +235,11 @@ def _edit_text(initial: str) -> str:
             if initial and not initial.endswith("\n"):
                 temporary.write("\n")
             temporary_path = Path(temporary.name)
-        _launch_editor(temporary_path)
+        launch_editor(temporary_path)
         return temporary_path.read_text(encoding="utf-8").strip()
     finally:
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
-
-
-def _resolved_source(item: FrictionItem) -> Path:
-    raw_target = item.path or item.cwd
-    if raw_target is None:
-        raise CliInputError("This item has no source path or working directory.")
-    target = Path(raw_target).expanduser()
-    if not target.is_absolute() and item.cwd:
-        target = Path(item.cwd).expanduser() / target
-    target = target.resolve()
-    if not target.exists():
-        raise CliInputError(f"Source path does not exist: {target}")
-    return target
 
 
 @app.command("add")
@@ -348,7 +272,12 @@ def add_item(
                     "--input-json cannot be combined with note or capture options."
                 )
             request = AddRequest.model_validate_json(_read_input_json(input_json))
-            return service.create(request.data.to_command())
+            command = request.data.to_command()
+            enrichment = missing_git_context(
+                command.cwd,
+                supplied_fields=request.data.model_fields_set,
+            )
+            return service.create(command.model_copy(update=enrichment))
 
         captured_note = note
         if edit:
@@ -356,7 +285,7 @@ def add_item(
         elif captured_note is None:
             captured_note = typer.prompt("what felt slow/annoying?")
         cwd = Path.cwd().resolve()
-        context = _git_context(cwd)
+        context = git_context(cwd)
         resolved_path = str(Path(path).expanduser().resolve()) if path else None
         return service.create(
             CreateItem(
@@ -646,7 +575,7 @@ def open_item(
 
     def operation() -> FrictionItem:
         item = _service(ctx).get(identifier)
-        _launch_editor(_resolved_source(item), line=item.line, column=item.column)
+        launch_editor(resolved_source(item), line=item.line, column=item.column)
         return item
 
     item = _call(output, operation)

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from sqlalchemy import text
@@ -88,3 +89,26 @@ def test_duplicate_uuid_is_rejected(service: FrictionService) -> None:
 
     with pytest.raises(DuplicateItemError):
         service.create(command)
+
+
+def test_repository_ordering_has_deterministic_id_tie_breakers(
+    service: FrictionService,
+) -> None:
+    moment = datetime(2026, 7, 16, 10, tzinfo=UTC)
+    lower = service.create(
+        CreateItem(
+            id=UUID("00000000-0000-0000-0000-000000000001"),
+            note="identical searchable phrase",
+            created_at=moment,
+        )
+    )
+    higher = service.create(
+        CreateItem(
+            id=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+            note="identical searchable phrase",
+            created_at=moment,
+        )
+    )
+
+    assert service.list() == [higher, lower]
+    assert service.search("identical searchable phrase") == [lower, higher]
