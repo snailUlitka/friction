@@ -1,8 +1,29 @@
 from pathlib import Path
 
+import pytest
+
 from friction.application import ArchiveFilter
 from friction.domain import CreateItem, ItemSource, ItemStatus
-from friction.interfaces.tui.screens import ItemFormValues, QueryState
+from friction.interfaces.tui.screens import (
+    ItemFormValues,
+    QueryState,
+    _optional,
+    _positive_integer,
+    _tags,
+)
+
+
+def test_form_value_parsers_handle_empty_valid_and_invalid_values() -> None:
+    assert _tags(" first, ,second ") == ("first", "second")
+    assert _optional("  ") is None
+    assert _optional(" value ") == "value"
+    assert _positive_integer("", "Line") is None
+    assert _positive_integer("12", "Line") == 12
+
+    with pytest.raises(ValueError, match="Line must be a positive integer"):
+        _positive_integer("not-a-number", "Line")
+    with pytest.raises(ValueError, match="Column must be a positive integer"):
+        _positive_integer("0", "Column")
 
 
 def test_query_state_builds_complete_paginated_query() -> None:
@@ -25,6 +46,10 @@ def test_query_state_builds_complete_paginated_query() -> None:
     assert query.limit == 100
     assert query.offset == 200
     assert "/clipboard" in state.summary
+
+
+def test_default_query_state_summary_is_readable() -> None:
+    assert QueryState().summary == "active · all statuses"
 
 
 def test_form_values_force_tui_attribution_and_build_sparse_patch(

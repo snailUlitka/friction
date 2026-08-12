@@ -3,6 +3,7 @@
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.tmp/
 .uv-cache/
 .venv/
 __pycache__/
@@ -13,4 +14,3 @@ htmlcov/
 *.db
 *.db-shm
 *.db-wal
-

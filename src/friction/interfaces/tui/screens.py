@@ -632,7 +632,9 @@ class ItemFormScreen(ModalScreen[None]):
         self.item = item
         self.expected_revision = item.revision
         self._ready = False
-        self.query_one("#form-note", TextArea).text = item.note
+        note = self.query_one("#form-note", TextArea)
+        with note.prevent(TextArea.Changed):
+            note.text = item.note
         values = {
             "form-tags": ",".join(item.tags),
             "form-path": item.path or "",
@@ -646,10 +648,12 @@ class ItemFormScreen(ModalScreen[None]):
             "form-git-commit": item.git_commit or "",
         }
         for field_id, value in values.items():
-            self.query_one("#" + field_id, Input).value = value
-        self.query_one("#form-metadata", TextArea).text = json.dumps(
-            item.metadata, ensure_ascii=False, indent=2
-        )
+            widget = self.query_one("#" + field_id, Input)
+            with widget.prevent(Input.Changed):
+                widget.value = value
+        metadata = self.query_one("#form-metadata", TextArea)
+        with metadata.prevent(TextArea.Changed):
+            metadata.text = json.dumps(item.metadata, ensure_ascii=False, indent=2)
         self.query_one("#form-conflict-actions", Horizontal).display = False
         self.query_one("#form-save").disabled = False
         self.show_error("")

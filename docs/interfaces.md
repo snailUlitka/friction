@@ -1,9 +1,9 @@
-# Planned Interfaces
+# Implemented Interfaces
 
-This document is the implementation specification for the next Friction
-interface milestone. It is intentionally prescriptive: an implementation agent
-should be able to complete the milestone without making product or architecture
-decisions that are not recorded here.
+This document is the implementation and acceptance record for the Friction
+local-interface milestone. It remains intentionally prescriptive so future
+changes do not silently undo the product or architecture decisions recorded
+here.
 
 The milestone contains all three required interfaces:
 
@@ -11,12 +11,12 @@ The milestone contains all three required interfaces:
 2. a configurable Emacs capture minor mode;
 3. a local MCP server using only the stdio transport.
 
-All three must be delivered. The implementation sequence later in this document
-is chosen to reduce integration risk; it does not express product priority or
-permit shipping a partial milestone.
+All three have been delivered. The delivery sequence later in this document was
+chosen to reduce integration risk; it does not express product priority or
+permit treating this as a partial milestone.
 
-This document describes planned behavior. None of these interfaces is part of
-the current v1 release until its corresponding acceptance criteria are met.
+All three interfaces are implemented as part of the current v1 release, and
+their acceptance criteria have passed.
 
 ## Fixed Decisions
 
@@ -46,7 +46,7 @@ the current v1 release until its corresponding acceptance criteria are met.
 
 ## User Outcomes
 
-After the milestone, a user can:
+With the milestone implemented, a user can:
 
 - run `friction tui` and manage the complete lifecycle of local items without
   remembering CLI subcommands;
@@ -61,7 +61,7 @@ After the milestone, a user can:
 
 ## Architecture and Dependency Direction
 
-The target dependency graph is:
+The dependency graph is:
 
 ```text
 Textual TUI ───────────────┐
@@ -873,12 +873,11 @@ Update these durable documents in the same implementation commits:
 - `docs/cli.md`: `tui` and `mcp` commands plus database option placement;
 - `docs/json-contract.md`: best-effort Git enrichment for machine capture;
 - `docs/validation.md`: TUI, MCP, and Emacs checks;
-- this document: change planned language to implemented status only after all
-  acceptance criteria pass.
+- this document: retain the implemented status and acceptance record.
 
-## Implementation Sequence
+## Delivery Sequence
 
-The implementation agent must use this sequence and leave each step in a
+The milestone was delivered in this sequence, with each step left in a
 reviewable commit:
 
 1. **Shared adapter helpers**
