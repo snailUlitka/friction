@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Install GNU Emacs
+        run: |
+          brew install emacs
+          emacs --version
+
+      - name: Validate source
+        run: |
+          uv lock --check
+          uv run ruff check .
+          uv run mypy src tests
+          uv run pytest --cov=friction --cov-report=term-missing --cov-fail-under=90
+          uv run pytest tests/migration
+          emacs --batch -Q -L integrations/emacs \
+            -l tests/emacs/friction-test.el -f ert-run-tests-batch-and-exit
+          emacs --batch -Q --eval \
+            '(progn (require (quote bytecomp)) (let ((byte-compile-error-on-warn t) (byte-compile-dest-file-function (lambda (_) (expand-file-name "friction.elc" temporary-file-directory)))) (byte-compile-file "integrations/emacs/friction.el")))'
+
+      - name: Build and verify distributions
+        run: |
+          uv build --clear
+          uv run python scripts/verify_release.py --tag "$GITHUB_REF_NAME"
+          shasum -a 256 dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
+
+      - name: Smoke-test wheel
+        env:
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/friction-bin
+          UV_TOOL_DIR: ${{ runner.temp }}/friction-tools
+        run: |
+          uv tool install dist/*.whl
+          "$UV_TOOL_BIN_DIR/friction" --version
+          "$UV_TOOL_BIN_DIR/friction" tui --help
+          "$UV_TOOL_BIN_DIR/friction" mcp --help
+          "$UV_TOOL_BIN_DIR/friction" --db "$RUNNER_TEMP/friction-release.db" doctor --output json
+          uv run python scripts/release_acceptance.py "$UV_TOOL_BIN_DIR/friction"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          dist/*.whl
+          dist/*.tar.gz
+          dist/SHA256SUMS
+          --verify-tag
+          --generate-notes
+          --title "Friction $GITHUB_REF_NAME"

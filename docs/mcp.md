@@ -18,6 +18,11 @@ A generic MCP host configuration for the default database is:
 }
 ```
 
+Use `command -v friction` after installation when the host requires an absolute
+path. A Homebrew installation normally resolves to `/opt/homebrew/bin/friction`
+on Apple Silicon or `/usr/local/bin/friction` on Intel macOS. Do not point a
+host at a development checkout.
+
 For another database, preserve root-option ordering:
 
 ```json

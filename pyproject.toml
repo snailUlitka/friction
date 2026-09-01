@@ -7,7 +7,21 @@ name = "friction"
 version = "0.1.0"
 description = "Local-first workflow-friction tracker"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Mikhail Polevoda" },
+]
 requires-python = ">=3.12"
+keywords = ["cli", "local-first", "mcp", "productivity", "tui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+]
 dependencies = [
     "alembic>=1.15,<2",
     "mcp>=1.28,<2",
@@ -16,6 +30,11 @@ dependencies = [
     "textual>=8.2,<9",
     "typer>=0.15,<1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/snailUlitka/friction"
+Repository = "https://github.com/snailUlitka/friction.git"
+Issues = "https://github.com/snailUlitka/friction/issues"
 
 [project.scripts]
 fr = "friction.cli:main"
@@ -35,6 +54,13 @@ testpaths = ["tests"]
 
 [tool.uv]
 required-version = ">=0.11.0,<0.12.0"
+
+[tool.uv.build-backend]
+source-include = [
+    "docs/**",
+    "integrations/emacs/**",
+    "tests/**",
+]
 
 [tool.ruff]
 target-version = "py312"

@@ -13,23 +13,29 @@ concurrency:
 
 jobs:
   test:
+    name: Python ${{ matrix.python-version }}
     runs-on: macos-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Install uv and Python 3.12
+      - name: Install uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           enable-cache: true
 
       - name: Install locked dependencies
         run: uv sync --locked --dev
 
       - name: Install GNU Emacs
+        if: matrix.python-version == '3.12'
         run: |
           brew install emacs
           emacs --version
@@ -51,6 +57,7 @@ jobs:
           --cov-fail-under=90
 
       - name: Test Emacs integration
+        if: matrix.python-version == '3.12'
         run: |
           emacs --batch -Q -L integrations/emacs \
             -l tests/emacs/friction-test.el -f ert-run-tests-batch-and-exit
@@ -58,9 +65,18 @@ jobs:
             '(progn (require (quote bytecomp)) (let ((byte-compile-error-on-warn t) (byte-compile-dest-file-function (lambda (_) (expand-file-name "friction.elc" temporary-file-directory)))) (byte-compile-file "integrations/emacs/friction.el")))'
 
       - name: Build package
-        run: uv build
-
-      - name: Smoke-test migrations and CLI
         run: |
-          uv run friction --db "$RUNNER_TEMP/friction-ci.db" doctor --output json
-          uv run friction --db "$RUNNER_TEMP/friction-ci.db" import-jsonl tests/fixtures/jsonl/legacy.jsonl --dry-run --output json
+          uv build --clear
+          uv run python scripts/verify_release.py
+
+      - name: Smoke-test installed package
+        env:
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/friction-bin
+          UV_TOOL_DIR: ${{ runner.temp }}/friction-tools
+        run: |
+          uv tool install dist/*.whl
+          "$UV_TOOL_BIN_DIR/friction" --version
+          "$UV_TOOL_BIN_DIR/friction" tui --help
+          "$UV_TOOL_BIN_DIR/friction" mcp --help
+          "$UV_TOOL_BIN_DIR/friction" --db "$RUNNER_TEMP/friction-ci.db" doctor --output json
+          "$UV_TOOL_BIN_DIR/friction" --db "$RUNNER_TEMP/friction-ci.db" import-jsonl tests/fixtures/jsonl/legacy.jsonl --dry-run --output json

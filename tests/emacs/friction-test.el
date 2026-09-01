@@ -26,6 +26,23 @@
                    '("/tmp/friction" "--db" "/tmp/local.db" "add"
                      "--input-json" "-" "--output" "json")))))
 
+(ert-deftest friction-test-resolves-path-and-homebrew-fallback ()
+  (let ((friction-executable "custom-friction"))
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (name)
+                 (and (equal name "custom-friction") "/tmp/custom-friction"))))
+      (should (equal (friction--resolve-executable) "/tmp/custom-friction"))))
+  (let ((friction-executable "friction"))
+    (cl-letf (((symbol-function 'executable-find) (lambda (_name) nil))
+              ((symbol-function 'file-executable-p)
+               (lambda (path) (equal path "/opt/homebrew/bin/friction"))))
+      (should (equal (friction--resolve-executable)
+                     "/opt/homebrew/bin/friction"))))
+  (let ((friction-executable "custom-friction"))
+    (cl-letf (((symbol-function 'executable-find) (lambda (_name) nil))
+              ((symbol-function 'file-executable-p) (lambda (_path) t)))
+      (should-not (friction--resolve-executable)))))
+
 (ert-deftest friction-test-payload-file-buffer-context-and-default-tags ()
   (with-temp-buffer
     (setq buffer-file-name "/tmp/example.py"

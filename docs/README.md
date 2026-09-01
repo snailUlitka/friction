@@ -14,6 +14,7 @@ maintenance procedures live here.
 - `tui.md` defines the terminal interface and its Vim-style interaction.
 - `../integrations/emacs/README.md` documents the standalone local Emacs mode.
 - `mcp.md` defines the local stdio server and its trust boundary.
+- `releases.md` defines versioning, release artifacts, and distribution handoff.
 - `interfaces.md` records the complete TUI, Emacs capture, and local MCP
   milestone requirements.
 - `validation.md` defines local and CI checks.
@@ -22,6 +23,8 @@ maintenance procedures live here.
 
 - Update the relevant document in the same commit as a behavior or contract
   change.
+- Treat `pyproject.toml` as the release-version source of truth and keep the
+  Emacs `Version` header aligned with it.
 - Prefer decisions and invariants over implementation narration.
 - Do not copy private friction notes, local database contents, or machine state
   into documentation or fixtures.

@@ -23,9 +23,15 @@
   :prefix "friction-")
 
 (defcustom friction-executable "friction"
-  "Friction executable name or absolute path."
+  "Friction executable name or absolute path.
+The default also checks standard Apple Silicon and Intel Homebrew locations
+when the executable is absent from `exec-path'."
   :type 'string
   :group 'friction)
+
+(defconst friction--homebrew-executables
+  '("/opt/homebrew/bin/friction" "/usr/local/bin/friction")
+  "Standard Homebrew paths considered for the default executable name.")
 
 (defcustom friction-database-file nil
   "Optional database passed to the Friction root --db option.
@@ -99,6 +105,15 @@ Set this to nil to leave the mode without a binding."
           (when friction-database-file
             (list "--db" (expand-file-name friction-database-file)))
           (list "add" "--input-json" "-" "--output" "json")))
+
+(defun friction--resolve-executable ()
+  "Return the configured Friction executable, or nil when unavailable."
+  (or (executable-find friction-executable)
+      (when (equal friction-executable "friction")
+        (catch 'found
+          (dolist (candidate friction--homebrew-executables)
+            (when (file-executable-p candidate)
+              (throw 'found candidate)))))))
 
 (defun friction--buffer-string (buffer)
   "Return BUFFER contents without text properties."
@@ -212,7 +227,7 @@ Interactively, prompt using `friction-capture-prompt'.  A Lisp caller may pass
 a multiline NOTE directly."
   (interactive)
   (let* ((snapshot (friction--snapshot))
-         (executable (executable-find friction-executable)))
+         (executable (friction--resolve-executable)))
     (unless executable
       (user-error "Friction executable is not available: %s"
                   friction-executable))

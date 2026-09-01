@@ -11,6 +11,29 @@ are implemented. Their shared requirements are recorded in
 [docs/interfaces.md](docs/interfaces.md). Web, Neovim, and network adapters
 remain deferred.
 
+## Installation
+
+Install the latest tagged release into an isolated user tool environment:
+
+```shell
+uv tool install "git+https://github.com/snailUlitka/friction.git@v0.1.0"
+friction --version
+friction doctor
+```
+
+Homebrew distribution through `snailUlitka/homebrew-tap` is planned for the
+next packaging step. Until its formula is published, use the tagged `uv` install
+above rather than a source checkout.
+
+The default database is
+`~/Library/Application Support/friction/friction.db`. Removing or upgrading the
+application does not remove this user-owned database.
+
+The Emacs package installs directly from the same Git repository through
+Emacs 30 `package-vc`; see
+[integrations/emacs/README.md](integrations/emacs/README.md). The MCP server is
+included in every normal Friction installation and starts with `friction mcp`.
+
 ## Development
 
 ```shell
@@ -19,7 +42,7 @@ uv run pytest
 uv run friction --help
 ```
 
-Install both console scripts into an isolated user tool environment:
+Install both console scripts from a checkout for local acceptance testing:
 
 ```shell
 uv tool install .
@@ -41,10 +64,11 @@ uv run friction mcp
 uv run friction import-jsonl ~/friction-log --dry-run
 ```
 
-The standalone local Emacs package and its settings are documented in
+The standalone Emacs package and its settings are documented in
 [integrations/emacs/README.md](integrations/emacs/README.md).
 Local MCP host configuration and its trust boundary are documented in
 [docs/mcp.md](docs/mcp.md).
 
-The supported runtime is Python 3.12+ on macOS. See [docs/README.md](docs/README.md)
-for the architecture and validation map.
+The supported runtime is Python 3.12+ on macOS. Friction is licensed under the
+[MIT License](LICENSE). See [docs/README.md](docs/README.md) for the architecture,
+release, and validation map.

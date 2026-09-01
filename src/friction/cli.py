@@ -15,6 +15,7 @@ import typer
 from pydantic import JsonValue, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from friction import __version__
 from friction.application import ArchiveFilter, FrictionService, ItemQuery
 from friction.contracts import (
     AddRequest,
@@ -51,6 +52,12 @@ from friction.storage import create_repository, create_service
 app = typer.Typer(help="Track workflow friction locally.")
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"friction {__version__}")
+        raise typer.Exit()
+
+
 class OutputMode(StrEnum):
     """CLI presentation format."""
 
@@ -77,6 +84,15 @@ def root(
     database: Annotated[
         Path | None,
         typer.Option("--db", help="Override the SQLite database path."),
+    ] = None,
+    _version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show the installed version and exit.",
+        ),
     ] = None,
 ) -> None:
     """Track workflow friction locally."""
