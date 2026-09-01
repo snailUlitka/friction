@@ -35,6 +35,9 @@ contains the standalone Emacs package and its documentation.
 
 Never publish an artifact built from an uncommitted tree. Never put a user
 database, friction log, editor state, credential, or package cache in a release.
+The project-level seven-day dependency cooldown in `pyproject.toml` is part of
+the reproducible lock policy and must not depend on a maintainer's global `uv`
+configuration.
 
 ## Homebrew Handoff
 
