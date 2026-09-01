@@ -13,17 +13,22 @@ remain deferred.
 
 ## Installation
 
-Install the latest tagged release into an isolated user tool environment:
+Install the latest release with Homebrew:
+
+```shell
+brew install snailulitka/tap/friction
+friction --version
+friction doctor
+```
+
+Alternatively, install the same tagged release into an isolated `uv` tool
+environment:
 
 ```shell
 uv tool install "git+https://github.com/snailUlitka/friction.git@v0.1.0"
 friction --version
 friction doctor
 ```
-
-Homebrew distribution through `snailUlitka/homebrew-tap` is planned for the
-next packaging step. Until its formula is published, use the tagged `uv` install
-above rather than a source checkout.
 
 The default database is
 `~/Library/Application Support/friction/friction.db`. Removing or upgrading the
