@@ -127,11 +127,20 @@ def doctor_database(database_path: str | Path | None) -> DoctorReport:
     engine = create_sqlite_engine(path)
     upgrade_database(engine)
     checks: list[DoctorCheck] = []
+    directory_writable = os.access(path.parent, os.W_OK)
     checks.append(
         DoctorCheck(
             "database_directory",
-            "ok" if os.access(path.parent, os.W_OK) else "error",
-            str(path.parent),
+            "ok" if directory_writable else "warning",
+            (
+                str(path.parent)
+                if directory_writable
+                else (
+                    f"{path.parent}: directory is not writable by the current "
+                    "process; filesystem permissions or sandbox policy may "
+                    "restrict mutations"
+                )
+            ),
         )
     )
     revision = current_revision(engine)

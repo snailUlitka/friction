@@ -1,7 +1,9 @@
 import json
+import os
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 from typer.testing import CliRunner, Result
 
 from friction.cli import app
@@ -63,6 +65,40 @@ def test_import_export_backup_and_doctor_commands(tmp_path: Path) -> None:
     assert len(list(export_directory.glob("*.jsonl"))) == 1
     assert _json(backed_up)["data"]["size"] > 0
     assert _json(doctor)["data"]["ok"] is True
+
+
+def test_doctor_reports_sandboxed_write_access_as_a_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "friction.db"
+    imported = _invoke(
+        database,
+        ["import-jsonl", str(FIXTURES / "legacy.jsonl"), "--output", "json"],
+    )
+    assert imported.exit_code == 0, imported.output
+
+    original_access = os.access
+
+    def sandboxed_access(path: os.PathLike[str] | str, mode: int) -> bool:
+        if Path(path) == database.parent and mode == os.W_OK:
+            return False
+        return original_access(path, mode)
+
+    monkeypatch.setattr(os, "access", sandboxed_access)
+
+    result = _invoke(database, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0, result.output
+    report = _json(result)["data"]
+    assert report["ok"] is True
+    writable = next(
+        check
+        for check in report["checks"]
+        if check["name"] == "database_directory"
+    )
+    assert writable["status"] == "warning"
+    assert "not writable by the current process" in writable["detail"]
+    assert "sandbox policy" in writable["detail"]
 
 
 def test_invalid_file_returns_import_error_without_partial_rows(tmp_path: Path) -> None:

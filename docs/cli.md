@@ -67,7 +67,12 @@ database. A real directory import commits each valid file independently and
 returns exit code 6 if any file is invalid. Canonical export includes active and
 archived items by default. `backup` is the complete SQLite backup including
 events and import provenance; `doctor` checks schema, pragmas, integrity, FTS5,
-Git, and editor configuration.
+Git, and editor configuration. Its `database_directory` check reports a
+warning, while keeping the diagnostic exit code successful, when the current
+process cannot write to the database directory. The warning names filesystem
+permissions and sandbox policy as possible causes; it does not imply database
+corruption. Schema, pragma, integrity, and FTS5 failures remain fatal. The
+existing check name is retained for compatibility with the v1 JSON contract.
 
 ## Terminal interface
 
