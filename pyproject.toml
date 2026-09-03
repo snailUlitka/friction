@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "friction"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local-first workflow-friction tracker"
 readme = "README.md"
 license = "MIT"

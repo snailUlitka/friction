@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026
 ;; Author: Mikhail Polevoda
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "30.2"))
 ;; Keywords: convenience, tools
 

@@ -25,7 +25,7 @@ Alternatively, install the same tagged release into an isolated `uv` tool
 environment:
 
 ```shell
-uv tool install "git+https://github.com/snailUlitka/friction.git@v0.1.0"
+uv tool install "git+https://github.com/snailUlitka/friction.git@v0.1.1"
 friction --version
 friction doctor
 ```
